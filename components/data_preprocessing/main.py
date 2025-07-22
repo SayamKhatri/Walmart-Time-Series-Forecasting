@@ -8,6 +8,7 @@ if __name__=='__main__':
     print("Download complete.")
 
     transformation = DataTransformation()
-    transformation.tranform_data()
-    print('Printed df_sales first 5 rows')
+    transformation.data_prep()
+    print('Saved trasnformed data')
+
 

@@ -7,8 +7,9 @@ import os
 
 class DataIngestion:
     def __init__(self):
-        self.config = ConfigManager().get_data_ingestion_config()
-        self.s3_client = boto3.client('s3')
+        config = ConfigManager()
+        self.config = config.get_data_ingestion_config()
+        self.s3_client = config.get_s3_client()
         
     def download_file(self, s3_key, path):
         os.makedirs(self.config.download_dir, exist_ok=True)
