@@ -145,6 +145,7 @@ env.bak/
 venv.bak/
 venv-wsf
 components/data_preprocessing/data/*
+components/model_training/data/*
 # Spyder project settings
 .spyderproject
 .spyproject

@@ -25,14 +25,19 @@ class DataTransformationConfig:
     save_path:str = 'transformed_data'
     save_path_label:str = 'label_encoders'
 
-    save_bucket_name:str = 'data-walmart-transformed'
-    save_bucket_key:str = 'final_transformed_data.parquet'
-
     def __post_init__(self):
         self.save_label_encoder_dir_path:str = os.path.join(self.raw_data_path, self.save_path_label)
         self.consolidated_data_path:str = os.path.join(self.raw_data_path, self.save_path, 'consolidated_data.parquet')
 
     
+@dataclass
+class FeatureEngineeringConfig:
+    transformed_data_path:str
+    le_path:str 
+
+    save_bucket_name:str = 'data-walmart-transformed'
+    save_bucket_key:str = 'transformed_data/final_transformed_data.parquet'
+    save_le_key:str = 'label_encoders'
 
 
     

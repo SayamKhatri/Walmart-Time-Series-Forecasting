@@ -2,3 +2,5 @@ pandas
 boto3
 pyarrow
 scikit-learn
+lightgbm
+torch
