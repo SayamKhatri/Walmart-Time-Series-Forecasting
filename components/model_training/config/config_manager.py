@@ -1,4 +1,4 @@
-from config.config_entities import DataIngestionConfig, TrainModelConfig
+from config.config_entities import DataIngestionConfig, TrainModelConfig, ModelEvaluationConfig
 import boto3
 
 class ConfigManager:
@@ -12,6 +12,12 @@ class ConfigManager:
             self.get_data_ingestion_config.data_save_path
         )
 
+        self.get_model_eval_config = ModelEvaluationConfig(
+            self.get_train_config.model_artifact_path,
+            self.get_train_config.model_save_path,
+            self.get_train_config.test_split_path
+        )
+
 
     def get_data_config(self):
         return self.get_data_ingestion_config
@@ -22,3 +28,6 @@ class ConfigManager:
 
     def get_model_training_config(self):
         return self.get_train_config
+    
+    def get_eval_config(self):
+        return self.get_model_eval_config

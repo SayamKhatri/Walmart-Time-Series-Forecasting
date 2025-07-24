@@ -338,8 +338,8 @@ parameters:
 [time_out: 120]
 [machine_list_filename: ]
 [machines: ]
-[gpu_platform_id: 0]
-[gpu_device_id: 0]
+[gpu_platform_id: -1]
+[gpu_device_id: -1]
 [gpu_use_dp: 0]
 [num_gpu: 1]
 

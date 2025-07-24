@@ -30,3 +30,14 @@ class TrainModelConfig:
         self.train_split_path:str = os.path.join(self.save_dir, self.save_sub_dir, 'train_data.parquet')
         self.valid_split_path:str = os.path.join(self.save_dir,self.save_sub_dir, 'valid_data.parquet')
         self.test_split_path:str = os.path.join(self.save_dir, self.save_sub_dir, 'test_data.parquet')
+    
+@dataclass
+class ModelEvaluationConfig:
+    model_artifact_path:str
+    model_save_path:str
+
+    test_split_path:str 
+
+    save_bucket_name:str = 'model-artifacts-wsf'
+    save_bucket_key:str = 'Champion_Model'
+
