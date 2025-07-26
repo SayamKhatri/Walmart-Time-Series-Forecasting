@@ -147,6 +147,7 @@ venv-wsf
 components/data_preprocessing/data/*
 components/model_training/data/*
 components/model_training/Artifacts/Saved_Model/lgb_model.txt
+components/model_inference/data/*
 # Spyder project settings
 .spyderproject
 .spyproject

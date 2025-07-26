@@ -58,29 +58,25 @@ class DataTransformation:
 
         save_path_data = self.config.consolidated_data_path
         os.makedirs(os.path.join(self.config.raw_data_path, self.config.save_path), exist_ok=True)
+        
+        label_encoders = self.get_label_encoders()
+        for col in ['store_id', 'event_type_1', 'event_name_2', 'event_type_2', 'event_name_1']:
+            final_df[col] = label_encoders[col].transform(final_df[col])
 
-        le = LabelEncoder()
-        final_df['store_id'] = le.fit_transform(final_df['store_id'])
-        save_path = os.path.join(self.config.save_label_encoder_dir_path, f'le_store_id.pkl')
-        joblib.dump(le,save_path)
+        final_df = final_df[-365:]
+        print(final_df.shape)
+        print(final_df.head())
         final_df.to_parquet(save_path_data, index=False)
-
+    
     def get_label_encoders(self):
-        df_calender = pd.read_parquet(os.path.join(self.path, 'calender_dim.parquet'))
-        label_cols = ['event_name_1', 'event_type_1', 'event_name_2', 'event_type_2']
-        df_calender['event_name_1']= df_calender['event_name_1'].fillna('No Event')
-        df_calender['event_type_1']= df_calender['event_type_1'].fillna('No Event')
-        df_calender['event_name_2']= df_calender['event_name_2'].fillna('No Event')
-        df_calender['event_type_2']= df_calender['event_type_2'].fillna('No Event')
-
-        os.makedirs(os.path.join(self.config.raw_data_path, self.config.save_path_label), exist_ok=True)
-        for col in label_cols:
-            le = LabelEncoder()
-            df_calender[col] = le.fit_transform(df_calender[col])
-            save_path = os.path.join(self.config.save_label_encoder_dir_path, f'le_{col}.pkl')
-            joblib.dump(le,save_path)
-
-
+        label_encoders = {}
+        for col in ['store_id', 'event_type_1', 'event_name_2', 'event_type_2', 'event_name_1']:
+            path = os.path.join(self.config.le_path, f'le_{col}.pkl')
+            le = joblib.load(path)
+            label_encoders[col] = le
+        
+        return label_encoders
+    
     def data_prep(self):
         self.get_label_encoders()
         self.tranform_data()
