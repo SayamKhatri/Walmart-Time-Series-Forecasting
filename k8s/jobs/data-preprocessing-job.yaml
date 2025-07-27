@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-preprocessing-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: data-preprocessing
+        image: <>.dkr.ecr.us-east-1.amazonaws.com/<>:latest
+        imagePullPolicy: Always
+        command: ["python", "main.py"]
+        resources:
+          limits:
+            memory: "28Gi"
+            cpu: "4"
+          requests:
+            memory: "28Gi"
+            cpu: "4"
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      restartPolicy: Never
+      volumes:
+      - name: logs
+        emptyDir: {}
+  backoffLimit: 1
