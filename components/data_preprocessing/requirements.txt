@@ -1,5 +1,4 @@
 boto3==1.39.13
-lightgbm==4.6.0
 numpy==1.26.4
 pandas==2.3.1
 pyarrow==21.0.0
