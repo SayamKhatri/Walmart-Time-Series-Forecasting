@@ -8,56 +8,33 @@ import sys
 
 def main():
     start_time = time.time()
-    logger.info("=" * 50)
     logger.info("Starting Data Preprocessing Pipeline")
-    logger.info("=" * 50)
     
     try:
         # Step 1: Data Ingestion
-        logger.info("Step 1: Starting Data Ingestion...")
-        ingestion_start = time.time()
-        
+        logger.info("Step 1: Data Ingestion")
         ingestion = DataIngestion()
         ingestion.download_all()
-        
-        ingestion_time = time.time() - ingestion_start
-        logger.info(f"✓ Data Ingestion completed successfully in {ingestion_time:.2f} seconds")
+        logger.info("✓ Data Ingestion completed")
         
         # Step 2: Data Transformation
-        logger.info("Step 2: Starting Data Transformation...")
-        transformation_start = time.time()
-        
+        logger.info("Step 2: Data Transformation")
         transformation = DataTransformation()
         transformation.data_prep()
-        
-        transformation_time = time.time() - transformation_start
-        logger.info(f"✓ Data Transformation completed successfully in {transformation_time:.2f} seconds")
+        logger.info("✓ Data Transformation completed")
         
         # Step 3: Feature Engineering
-        logger.info("Step 3: Starting Feature Engineering...")
-        feature_start = time.time()
-        
+        logger.info("Step 3: Feature Engineering")
         feature_engineering = FeatureEngineering()
         feature_engineering.feature_creation()
-        
-        feature_time = time.time() - feature_start
-        logger.info(f"✓ Feature Engineering completed successfully in {feature_time:.2f} seconds")
+        logger.info("✓ Feature Engineering completed")
         
         # Pipeline Summary
         total_time = time.time() - start_time
-        logger.info("=" * 50)
-        logger.info("Data Preprocessing Pipeline Completed Successfully!")
-        logger.info(f"Total Pipeline Time: {total_time:.2f} seconds")
-        logger.info(f"Breakdown:")
-        logger.info(f"  - Data Ingestion: {ingestion_time:.2f}s ({ingestion_time/total_time*100:.1f}%)")
-        logger.info(f"  - Data Transformation: {transformation_time:.2f}s ({transformation_time/total_time*100:.1f}%)")
-        logger.info(f"  - Feature Engineering: {feature_time:.2f}s ({feature_time/total_time*100:.1f}%)")
-        logger.info("=" * 50)
+        logger.info(f"Pipeline completed successfully in {total_time:.2f} seconds")
         
     except Exception as e:
-        logger.error(f"Pipeline failed with error: {str(e)}")
-        logger.error(f"Error type: {type(e).__name__}")
-        logger.error("Pipeline terminated unsuccessfully")
+        logger.error(f"Pipeline failed: {str(e)}")
         sys.exit(1)
 
 if __name__=='__main__':

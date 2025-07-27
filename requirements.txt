@@ -6,3 +6,4 @@ scikit-learn
 lightgbm
 torch
 s3fs
+psutil
