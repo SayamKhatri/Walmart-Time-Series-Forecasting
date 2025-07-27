@@ -7,6 +7,8 @@ import lightgbm as lgb
 from io import BytesIO
 import warnings
 warnings.filterwarnings('ignore')
+from logger.logging_master import logger
+import time
 
 class Inference:
     def __init__(self):
@@ -15,44 +17,54 @@ class Inference:
         self.s3_client = config.get_s3_client()
 
     def inference_preparation(self):
-        df_sales = pd.read_parquet(self.config.transformed_data_path)
-        df_current = df_sales[-365:]
-        df_current.reset_index(drop=True, inplace=True)
-        df_current['day_num'] = df_current['d'].str.split('_').str[1]
-        df_current['day_num'] = df_current['day_num'].astype(int)
-        truth_num = df_current['day_num'].max()
+        logger.info("Starting inference preparation")
+        start_time = time.time()
         
-        df_product = pd.read_parquet(self.config.product_dim_path)
-        df_product = df_product[df_product['store_id'].isin(['CA_1', 'CA_2', 'CA_3', 'CA_4'])]
+        try:
+            # Load data
+            df_sales = pd.read_parquet(self.config.transformed_data_path)
+            df_current = df_sales[-365:]
+            df_current.reset_index(drop=True, inplace=True)
+            df_current['day_num'] = df_current['d'].str.split('_').str[1]
+            df_current['day_num'] = df_current['day_num'].astype(int)
+            truth_num = df_current['day_num'].max()
+            
+            df_product = pd.read_parquet(self.config.product_dim_path)
+            df_product = df_product[df_product['store_id'].isin(['CA_1', 'CA_2', 'CA_3', 'CA_4'])]
 
+            df_calender = pd.read_parquet(self.config.calender_dim_path)
+            df_calender['date'] = pd.to_datetime(df_calender['date'])
+            df_calender['day_num'] = df_calender['d'].str.split('_').str[1]
+            df_calender['day_num']= df_calender['day_num'].astype(int)
 
-        df_calender = pd.read_parquet(self.config.calender_dim_path)
-        df_calender['date'] = pd.to_datetime(df_calender['date'])
-        df_calender['day_num'] = df_calender['d'].str.split('_').str[1]
-        df_calender['day_num']= df_calender['day_num'].astype(int)
+            forecast_start_date = df_calender[df_calender['day_num'] == truth_num]['date'].iloc[0]
+            label_encoders = self.get_label_encoders()
+            model = self.get_model()
 
-        forecast_start_date = df_calender[df_calender['day_num'] == truth_num]['date'].iloc[0]
-        label_encoders = self.get_label_encoders()
-        model = self.get_model()
+            logger.info("Generating 7-day predictions")
+            df_predict = self.seven_day_predictions(
+                forecast_start_date= forecast_start_date,
+                df_calender= df_calender,
+                df_product= df_product,
+                label_encoders= label_encoders,
+                model= model,
+                df_history= df_current
+            )
 
-        df_predict = self.seven_day_predictions(
-            forecast_start_date= forecast_start_date,
-            df_calender= df_calender,
-            df_product= df_product,
-            label_encoders= label_encoders,
-            model= model,
-            df_history= df_current
-        )
-
-
-        parquet_buffer = BytesIO()
-        df_predict.to_parquet(parquet_buffer, index=False)
-
-        print("[14] Uploading feature data to S3...")
-        self.predict_data_to_s3(parquet_buffer)
-        print("[14] Upload complete.")
-
-
+            # Upload predictions
+            parquet_buffer = BytesIO()
+            df_predict.to_parquet(parquet_buffer, index=False)
+            
+            logger.info("Uploading predictions to S3")
+            self.predict_data_to_s3(parquet_buffer)
+            
+            inference_time = time.time() - start_time
+            logger.info(f"Inference completed in {inference_time:.2f} seconds")
+            logger.info(f"Generated predictions for {len(df_predict)} records")
+            
+        except Exception as e:
+            logger.error(f"Inference preparation failed: {str(e)}")
+            raise
 
     def create_dummy_rows_for_prediction(self, forecast_start_date, df_calender, df_product, label_encoders):
         cal_row = df_calender[df_calender['date'] == forecast_start_date]
@@ -72,7 +84,6 @@ class Inference:
         
         product_with_price['day_num'] = day_num
 
-
         # Some Cleaning
         product_with_price['sales'] = np.nan
         product_with_price.drop(columns=['wm_yr_wk'], inplace=True)
@@ -80,7 +91,6 @@ class Inference:
         product_with_price['event_type_1'].fillna('No Event', inplace=True)
         product_with_price['event_name_2'].fillna('No Event', inplace=True)
         product_with_price['event_type_2'].fillna('No Event', inplace=True)
-
 
         for col in ['store_id', 'event_type_1', 'event_name_2', 'event_type_2', 'event_name_1']:
             product_with_price[col] = label_encoders[col].transform(product_with_price[col])
@@ -146,36 +156,51 @@ class Inference:
         # Return clean forecast
         return df_forecast[['store_id', 'product_key', 'date', 'sales']]
 
-
     def get_label_encoders(self):
-        label_encoders = {}
-        for col in ['store_id', 'event_type_1', 'event_name_2', 'event_type_2', 'event_name_1']:
-            path = os.path.join(self.config.le_path, f'le_{col}.pkl')
-            le = joblib.load(path)
-            label_encoders[col] = le
-        
-        return label_encoders
+        try:
+            label_encoders = {}
+            for col in ['store_id', 'event_type_1', 'event_name_2', 'event_type_2', 'event_name_1']:
+                path = os.path.join(self.config.le_path, f'le_{col}.pkl')
+                le = joblib.load(path)
+                label_encoders[col] = le
+            
+            logger.info("Label encoders loaded successfully")
+            return label_encoders
+            
+        except Exception as e:
+            logger.error(f"Failed to load label encoders: {str(e)}")
+            raise
 
     def get_model(self):
-        os.makedirs(self.config.model_download_dir, exist_ok=True)
-        save_path = os.path.join(self.config.model_download_dir, 'lgb-model.txt')
-        bucket = self.config.model_bucket_name
-        key = self.config.model_bucket_key
-        
-        self.s3_client.download_file(
-            bucket, key, save_path
-        )
-        print('Model Downlaoded')
+        try:
+            os.makedirs(self.config.model_download_dir, exist_ok=True)
+            save_path = os.path.join(self.config.model_download_dir, 'lgb-model.txt')
+            bucket = self.config.model_bucket_name
+            key = self.config.model_bucket_key
+            
+            self.s3_client.download_file(bucket, key, save_path)
+            logger.info("Model downloaded successfully")
 
-        model = lgb.Booster(model_file=save_path)
-        return model
+            model = lgb.Booster(model_file=save_path)
+            logger.info("Model loaded successfully")
+            return model
+            
+        except Exception as e:
+            logger.error(f"Failed to load model: {str(e)}")
+            raise
 
     def predict_data_to_s3(self, parquet_buffer):
-        bucket_name = self.config.prediction_bucket
-        key_name = 'prediction.parquet'
+        try:
+            bucket_name = self.config.prediction_bucket
+            key_name = 'prediction.parquet'
 
-        self.s3_client.put_object(
-            Bucket=bucket_name,
-            Key=key_name,
-            Body=parquet_buffer.getvalue()
-        )
+            self.s3_client.put_object(
+                Bucket=bucket_name,
+                Key=key_name,
+                Body=parquet_buffer.getvalue()
+            )
+            logger.info("Predictions uploaded to S3 successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to upload predictions: {str(e)}")
+            raise

@@ -27,7 +27,9 @@ services:
     container_name: logstash
     volumes:
       - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-      - ../components/data_preprocessing/logs:/usr/share/logs  # Mount log files
+      - ../components/data_preprocessing/logs:/usr/share/logs/data_preprocessing
+      - ../components/model_training/logs:/usr/share/logs/model_training
+      - ../components/model_deployment/logs:/usr/share/logs/model_deployment 
     depends_on:
       - elasticsearch
     ports:

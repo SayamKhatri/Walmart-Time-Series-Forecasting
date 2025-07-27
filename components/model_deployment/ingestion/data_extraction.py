@@ -4,6 +4,7 @@ import pyarrow
 from config.config_manager import ConfigManager
 import os
 import s3fs
+from logger.logging_master import logger
 
 class DataIngestion:
     def __init__(self):
@@ -12,15 +13,31 @@ class DataIngestion:
         self.s3_client = config.get_s3_client()
         
     def download_file(self, s3_key, path):
-        os.makedirs(self.config.download_dir, exist_ok=True)
-        os.makedirs(os.path.join(self.config.download_dir, self.config.download_sub_dir), exist_ok=True)
-        
-        self.s3_client.download_file(self.config.bucket_name, s3_key, path)
+        try:
+            os.makedirs(self.config.download_dir, exist_ok=True)
+            os.makedirs(os.path.join(self.config.download_dir, self.config.download_sub_dir), exist_ok=True)
+            
+            self.s3_client.download_file(self.config.bucket_name, s3_key, path)
+            
+        except Exception as e:
+            logger.error(f"Failed to download {s3_key}: {str(e)}")
+            raise
 
     def download_all(self):
-        self.download_file(self.config.calender_file_key, self.config.calender_dim_path)
-        self.download_file(self.config.product_file_key, self.config.product_dim_path)
-        self.download_file(self.config.sales_fact_key, self.config.sales_fact_path)
+        logger.info("Downloading deployment data from S3")
+        
+        try:
+            # Download data files
+            self.download_file(self.config.calender_file_key, self.config.calender_dim_path)
+            self.download_file(self.config.product_file_key, self.config.product_dim_path)
+            self.download_file(self.config.sales_fact_key, self.config.sales_fact_path)
 
-        fs = s3fs.S3FileSystem()
-        fs.get(self.config.le_bucket_name, self.config.le_path, recursive=True)
+            # Download label encoders
+            fs = s3fs.S3FileSystem()
+            fs.get(self.config.le_bucket_name, self.config.le_path, recursive=True)
+            
+            logger.info("Deployment data downloaded successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to download deployment data: {str(e)}")
+            raise
