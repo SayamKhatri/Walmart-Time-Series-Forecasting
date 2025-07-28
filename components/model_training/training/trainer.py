@@ -84,7 +84,6 @@ class ModelTraining:
                 ]
             )
 
-            # Save model
             os.makedirs(self.config.model_artifact_path, exist_ok=True)
             os.makedirs(os.path.join(self.config.model_artifact_path, self.config.model_save_path), exist_ok=True)
             save_path = os.path.join(self.config.model_artifact_path, self.config.model_save_path)
