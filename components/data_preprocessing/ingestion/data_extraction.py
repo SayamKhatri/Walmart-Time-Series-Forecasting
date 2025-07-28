@@ -13,14 +13,11 @@ class DataIngestion:
         
     def download_file(self, s3_key, path):
         try:
-            # Create directories
             os.makedirs(self.config.download_dir, exist_ok=True)
             os.makedirs(os.path.join(self.config.download_dir, self.config.download_sub_dir), exist_ok=True)
-            
-            # Download file
+
             self.s3_client.download_file(self.config.bucket_name, s3_key, path)
             
-            # Verify file exists
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Downloaded file not found at {path}")
                 
@@ -40,7 +37,6 @@ class DataIngestion:
         for s3_key, path, description in files_to_download:
             self.download_file(s3_key, path)
         
-        # Verify all files exist
         all_files_exist = all(os.path.exists(path) for _, path, _ in files_to_download)
         if not all_files_exist:
             missing_files = [path for _, path, _ in files_to_download if not os.path.exists(path)]
