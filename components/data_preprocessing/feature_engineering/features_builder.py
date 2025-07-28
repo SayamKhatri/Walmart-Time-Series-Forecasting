@@ -21,16 +21,13 @@ class FeatureEngineering:
         logger.info("Starting feature engineering")
         
         try:
-            # Load transformed data
             path = self.config.transformed_data_path
             df = pd.read_parquet(path)
             logger.info(f"Loaded data: {df.shape}")
 
-            # Create ID and sort
             df['id'] = df['item_id'] + 'store_id_' + df['store_id'].astype(str)
             df.sort_values(by=['id', 'date_key'], inplace=True)
-
-            # Fill sell_price
+        
             df["sell_price"] = (
                 df.groupby(["item_id", "store_id"])["sell_price"]
                 .ffill()
@@ -38,7 +35,6 @@ class FeatureEngineering:
             )
             df.reset_index(drop=True, inplace=True)
 
-            # Filter data
             df['day_num'] = df['d'].str.split('_').str[1]
             df = df[df['day_num'].astype('int') > 365]
 
@@ -50,7 +46,6 @@ class FeatureEngineering:
             # Memory cleanup
             gc.collect()
 
-            # Filter again
             df = df[df['day_num'].astype('int') >= 640]
 
             # Create rolling features
@@ -84,31 +79,25 @@ class FeatureEngineering:
             df["pct_change_price"] = df.groupby("id")["sell_price"].pct_change()
             df["pct_change_price"].fillna(0, inplace=True)
 
-            # Final filtering
             df = df[df['day_num'].astype('int') >= 731]
 
-            # Drop unnecessary columns
             df.drop(columns=['id', 'd', 'wm_yr_wk', 'item_id', 'date_key'], inplace=True)
 
-            # Label encode categorical features
             categorical_cols = ["event_name_1", "event_type_1",
                                 "event_name_2", "event_type_2"]
             label_encoders = self.label_encode_features(categorical_cols)
             for col in categorical_cols:
                 df[col] = label_encoders[col].transform(df[col])
 
-            # Save to buffer and upload
             parquet_buffer = BytesIO()
             df.to_parquet(parquet_buffer, index=False)
 
-            # Upload to S3
             self.s3_client.put_object(
                 Bucket=self.config.save_bucket_name,
                 Key=self.config.save_bucket_key,
                 Body=parquet_buffer.getvalue()
             )
 
-            # Upload label encoders
             label_cols = ['event_name_1', 'event_type_1', 'event_name_2', 'event_type_2', 'store_id'] 
             for col in label_cols:
                 path = os.path.join(self.config.le_path, f'le_{col}.pkl')
