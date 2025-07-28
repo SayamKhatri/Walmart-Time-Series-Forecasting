@@ -41,7 +41,6 @@ class DataTransformation:
         merged_df = merged_df.merge(df_calender[calendar_cols], on='date_key', how='left')
         merged_df.fillna('No Event', inplace=True) # Fills event columns only
         
-        # Clear up some memory
         del df_sales 
         del df_calender
         del full_grid
