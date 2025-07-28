@@ -109,7 +109,7 @@ class FeatureEngineering:
             )
 
             # Upload label encoders
-            label_cols = ['event_name_1', 'event_type_1', 'event_name_2', 'event_type_2']
+            label_cols = ['event_name_1', 'event_type_1', 'event_name_2', 'event_type_2', 'store_id'] 
             for col in label_cols:
                 path = os.path.join(self.config.le_path, f'le_{col}.pkl')
                 key = os.path.join(self.config.save_le_key, f'le_{col}.pkl')

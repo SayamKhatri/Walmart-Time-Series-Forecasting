@@ -3,7 +3,6 @@ import numpy as np
 from config.config_manager import ConfigManager
 import os
 import lightgbm as lgb
-import torch
 from constants.constants import params
 from logger.logging_master import logger
 import time
@@ -61,16 +60,16 @@ class ModelTraining:
 
             parameters = params.copy()
             
-            if torch.cuda.is_available():
-                parameters.update({
-                    'device': 'gpu',
-                    'gpu_platform_id': 0,
-                    'gpu_device_id': 0
-                })
-            else:
-                parameters['device'] = 'cpu'
+            
+            # parameters.update({
+            #     'device': 'gpu',
+            #     'gpu_platform_id': 0,
+            #     'gpu_device_id': 0
+            # })
 
-            logger.info(f"Training on {parameters['device']}")
+                # parameters['device'] = 'cpu'
+
+            # logger.info(f"Training on {parameters['device']}")
             
             # train
             model = lgb.train(
