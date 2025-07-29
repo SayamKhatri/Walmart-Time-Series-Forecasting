@@ -151,7 +151,7 @@ components/model_deployment/data/*
 # Spyder project settings
 .spyderproject
 .spyproject
-
+components/model_training/mlruns
 # Rope project settings
 .ropeproject
 

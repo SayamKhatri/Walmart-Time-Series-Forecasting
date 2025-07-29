@@ -1,4 +1,4 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
 from config.config_manager import ConfigManager
 import os
@@ -6,6 +6,8 @@ import lightgbm as lgb
 from constants.constants import params
 from logger.logging_master import logger
 import time
+import mlflow
+import mlflow.lightgbm
 
 class ModelTraining:
     def __init__(self):
@@ -14,11 +16,10 @@ class ModelTraining:
 
     def split_data(self):
         logger.info("Loading and splitting training data")
-        
+
         try:
             df = pd.read_parquet(self.config.data_save_path)
             df['day_num'] = df['day_num'].astype(int) - 730
-
             df = df.sort_values('day_num')
 
             unique_days = df['day_num'].unique()
@@ -27,19 +28,17 @@ class ModelTraining:
             train_end_day = unique_days[int(0.7 * total_days)]
             valid_end_day = unique_days[int(0.85 * total_days)]
 
-            # Split data
             train_data = df[df['day_num'] <= train_end_day]
             valid_data = df[(df['day_num'] > train_end_day) & (df['day_num'] <= valid_end_day)]
             test_data = df[df['day_num'] > valid_end_day]
-            
-            os.makedirs(os.path.join(self.config.save_dir, self.config.save_sub_dir), exist_ok=True)
 
+            os.makedirs(os.path.join(self.config.save_dir, self.config.save_sub_dir), exist_ok=True)
             test_data.to_parquet(self.config.test_split_path, index=False)
-            
+
             logger.info(f"Data split completed - Train: {len(train_data)}, Valid: {len(valid_data)}, Test: {len(test_data)}")
 
             self.training(train_data[:-1000], valid_data[1000:])
-            
+
         except Exception as e:
             logger.error(f"Data splitting failed: {str(e)}")
             raise
@@ -47,53 +46,47 @@ class ModelTraining:
     def training(self, df_train, df_valid):
         logger.info("Starting model training")
         start_time = time.time()
-        
+
         try:
             X_train = df_train.drop(columns=['day_num', 'sales'])
             y_train = df_train['sales']
 
             X_valid = df_valid.drop(columns=['day_num', 'sales'])
             y_valid = df_valid['sales']
-            
+
             train_data = lgb.Dataset(X_train, label=y_train)
             valid_data = lgb.Dataset(X_valid, label=y_valid, reference=train_data)
 
             parameters = params.copy()
-            
-            
-            # parameters.update({
-            #     'device': 'gpu',
-            #     'gpu_platform_id': 0,
-            #     'gpu_device_id': 0
-            # })
 
-                # parameters['device'] = 'cpu'
+            with mlflow.start_run(run_name="LightGBM Model Training"):
+                mlflow.log_params(parameters)
 
-            # logger.info(f"Training on {parameters['device']}")
-            
-            # train
-            model = lgb.train(
-                parameters,
-                train_data,
-                num_boost_round=10,
-                valid_sets=[train_data, valid_data],
-                valid_names=['train', 'valid'],
-                callbacks=[
-                    lgb.early_stopping(stopping_rounds=5),
-                    lgb.log_evaluation(period=1)
-                ]
-            )
+                model = lgb.train(
+                    parameters,
+                    train_data,
+                    num_boost_round=10,
+                    valid_sets=[train_data, valid_data],
+                    valid_names=['train', 'valid'],
+                    callbacks=[
+                        lgb.early_stopping(stopping_rounds=5),
+                        lgb.log_evaluation(period=1)
+                    ]
+                )
 
-            os.makedirs(self.config.model_artifact_path, exist_ok=True)
-            os.makedirs(os.path.join(self.config.model_artifact_path, self.config.model_save_path), exist_ok=True)
-            save_path = os.path.join(self.config.model_artifact_path, self.config.model_save_path)
-            
-            model.save_model(os.path.join(save_path, 'lgb_model.txt'))
-            
-            training_time = time.time() - start_time
-            logger.info(f"Model training completed in {training_time:.2f} seconds")
-            logger.info(f"Model saved to {save_path}")
-            
+                training_time = time.time() - start_time
+                mlflow.log_metric("training_time_sec", training_time)
+
+                save_path = os.path.join(self.config.model_artifact_path, self.config.model_save_path)
+                os.makedirs(save_path, exist_ok=True)
+                model_file = os.path.join(save_path, 'lgb_model.txt')
+                model.save_model(model_file)
+
+                mlflow.lightgbm.log_model(model, artifact_path="model")
+
+                logger.info(f"Model training completed in {training_time:.2f} seconds")
+                logger.info(f"Model saved to {model_file}")
+
         except Exception as e:
             logger.error(f"Model training failed: {str(e)}")
             raise
